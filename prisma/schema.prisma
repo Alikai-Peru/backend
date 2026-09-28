@@ -1,0 +1,284 @@
+// Esquema de la base de datos de Alikai Perú.
+//
+// Motor: PostgreSQL 16, la misma familia que ofrece Supabase, para que el paso
+// a producción no requiera cambios en el esquema.
+//
+// En Prisma 7 la URL de conexión no se declara aquí: el CLI la toma de
+// prisma7.config.ts y el cliente la recibe mediante un adaptador de driver
+// (ver src/db/prisma.ts y prisma.config.ts).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- enumeraciones
+// Postgres valida estos valores a nivel de base de datos, así que un estado
+// inválido no puede llegar a persistirse ni siquiera desde una consulta manual.
+
+enum Rol {
+  ADMIN
+  EDITOR
+}
+
+enum TemaArea {
+  marino
+  selva
+  dorado
+}
+
+enum EstadoProyecto {
+  EN_CURSO
+  FINALIZADO
+  PROXIMO
+}
+
+enum MotivoContacto {
+  VOLUNTARIADO
+  DONACION
+  ALIANZA
+  PRENSA
+  OTRO
+}
+
+enum EstadoMensaje {
+  NUEVO
+  LEIDO
+  RESPONDIDO
+  ARCHIVADO
+}
+
+enum EstadoPostulacion {
+  RECIBIDA
+  EN_EVALUACION
+  ACEPTADA
+  RECHAZADA
+}
+
+enum FrecuenciaDonacion {
+  UNICA
+  MENSUAL
+}
+
+enum MetodoDonacion {
+  TRANSFERENCIA
+  YAPE
+  PLIN
+  TARJETA
+  OTRO
+}
+
+enum EstadoDonacion {
+  PENDIENTE
+  CONFIRMADA
+  RECHAZADA
+  ANULADA
+}
+
+// --------------------------------------------------------------------- modelos
+
+/// Personas con acceso al panel de administración.
+model Usuario {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  nombre        String
+  passwordHash  String
+  rol           Rol       @default(EDITOR)
+  activo        Boolean   @default(true)
+  ultimoAcceso  DateTime?
+  creadoEn      DateTime  @default(now())
+  actualizadoEn DateTime  @updatedAt
+
+  mensajesAtendidos MensajeContacto[]
+
+  @@index([rol])
+}
+
+/// Las seis áreas de trabajo institucionales.
+model Area {
+  id          String @id @default(cuid())
+  slug        String @unique
+  nombre      String
+  nombreCorto String
+  lema        String
+  resumen     String
+  /// Párrafos de contexto separados por una línea en blanco.
+  descripcion String   @db.Text
+  /// Nombre del icono en el frontend (lucide-react).
+  icono             String
+  tema              TemaArea @default(marino)
+  indicadorValor    String
+  indicadorEtiqueta String
+  orden             Int      @default(0)
+  activa            Boolean  @default(true)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  objetivos   ObjetivoArea[]
+  programas   ProgramaArea[]
+  proyectos   Proyecto[]
+  donaciones  Donacion[]
+  voluntarios PostulacionVoluntario[]
+
+  @@index([activa, orden])
+}
+
+model ObjetivoArea {
+  id     String @id @default(cuid())
+  texto  String
+  orden  Int    @default(0)
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([areaId, orden])
+}
+
+model ProgramaArea {
+  id          String @id @default(cuid())
+  titulo      String
+  descripcion String
+  orden       Int    @default(0)
+  areaId      String
+  area        Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([areaId, orden])
+}
+
+/// Proyectos ejecutados, en curso o próximos.
+model Proyecto {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  titulo        String
+  region        String
+  anio          String
+  estado        EstadoProyecto @default(EN_CURSO)
+  resumen       String         @db.Text
+  beneficiarios String
+  /// Porcentaje de avance, de 0 a 100.
+  avance    Int     @default(0)
+  publicado Boolean @default(true)
+
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id])
+
+  aliados    AliadoProyecto[]
+  donaciones Donacion[]
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([estado])
+  @@index([areaId])
+  @@index([publicado, anio])
+}
+
+model AliadoProyecto {
+  id         String   @id @default(cuid())
+  nombre     String
+  proyectoId String
+  proyecto   Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@index([proyectoId])
+}
+
+/// Cifras de impacto que se muestran en el sitio.
+model CifraImpacto {
+  id       String  @id @default(cuid())
+  clave    String  @unique
+  valor    Int
+  sufijo   String?
+  etiqueta String
+  detalle  String
+  orden    Int     @default(0)
+  activa   Boolean @default(true)
+
+  actualizadoEn DateTime @updatedAt
+
+  @@index([activa, orden])
+}
+
+/// Mensajes enviados desde el formulario de contacto.
+model MensajeContacto {
+  id       String         @id @default(cuid())
+  nombre   String
+  email    String
+  telefono String?
+  motivo   MotivoContacto
+  mensaje  String         @db.Text
+  estado   EstadoMensaje  @default(NUEVO)
+
+  aceptaPrivacidad Boolean @default(true)
+  notaInterna      String? @db.Text
+  /// Se guarda para poder limitar abusos; no se expone en la API pública.
+  ipOrigen         String?
+
+  atendidoPorId String?
+  atendidoPor   Usuario? @relation(fields: [atendidoPorId], references: [id], onDelete: SetNull)
+
+  creadoEn     DateTime  @default(now())
+  respondidoEn DateTime?
+
+  @@index([estado, creadoEn])
+  @@index([email])
+}
+
+/// Postulaciones al programa de voluntariado.
+model PostulacionVoluntario {
+  id        String @id @default(cuid())
+  nombres   String
+  apellidos String
+  email     String
+  telefono  String
+  profesion String
+  /// Texto libre: días y horarios disponibles.
+  disponibilidad String
+  experiencia    String?           @db.Text
+  motivacion     String            @db.Text
+  estado         EstadoPostulacion @default(RECIBIDA)
+  notaInterna    String?           @db.Text
+
+  areaInteresId String?
+  areaInteres   Area?   @relation(fields: [areaInteresId], references: [id], onDelete: SetNull)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([estado, creadoEn])
+  @@index([email])
+}
+
+/// Donaciones registradas. El monto se guarda en céntimos para evitar
+/// errores de redondeo propios de los números decimales.
+model Donacion {
+  id            String             @id @default(cuid())
+  montoCentimos Int
+  moneda        String             @default("PEN")
+  frecuencia    FrecuenciaDonacion @default(UNICA)
+  metodo        MetodoDonacion     @default(TRANSFERENCIA)
+  estado        EstadoDonacion     @default(PENDIENTE)
+
+  nombre   String?
+  email    String?
+  telefono String?
+  anonima  Boolean @default(false)
+  mensaje  String? @db.Text
+  /// Código de operación, voucher o identificador de la pasarela de pago.
+  referencia String?
+
+  areaId     String?
+  area       Area?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  proyectoId String?
+  proyecto   Proyecto? @relation(fields: [proyectoId], references: [id], onDelete: SetNull)
+
+  creadoEn     DateTime  @default(now())
+  confirmadaEn DateTime?
+
+  @@index([estado, creadoEn])
+  @@index([email])
+}

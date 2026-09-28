@@ -1,0 +1,61 @@
+# Servicios locales del backend de Alikai Perú.
+#
+# Por defecto solo levanta la base de datos, que es lo que se necesita para
+# desarrollar: la API se ejecuta con `npm run dev` en el host para conservar la
+# recarga automática.
+#
+#   docker compose up -d           solo Postgres
+#   docker compose --profile completo up -d --build   Postgres + API en contenedor
+#
+# Se usa Postgres 16, la misma familia de versiones que ofrece Supabase, para
+# que el paso a producción no traiga sorpresas.
+
+name: alikai
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: alikai_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: alikai
+      POSTGRES_PASSWORD: alikai_local
+      POSTGRES_DB: alikai
+      # Locale C: evita depender de locales que la imagen alpine no incluye.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # 5433 en el host porque el 5432 ya está ocupado por otra instalación.
+      - "5433:5432"
+    volumes:
+      - datos_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alikai -d alikai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    profiles: ["completo"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alikai_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Dentro de la red de Docker se usa el nombre del servicio y el puerto interno.
+      DATABASE_URL: postgresql://alikai:alikai_local@postgres:5432/alikai?schema=public
+      CORS_ORIGENES: http://localhost:3000
+      JWT_SECRET: ${JWT_SECRET:-clave-solo-para-desarrollo-cambiar-en-produccion-0123456789}
+      JWT_EXPIRACION: 8h
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  datos_postgres:
+    name: alikai_datos_postgres

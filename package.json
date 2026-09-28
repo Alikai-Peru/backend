@@ -1,0 +1,65 @@
+{
+  "name": "alikai-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API de Alikai Perú: contacto, voluntariado, donaciones y gestión de contenido",
+  "type": "commonjs",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "prisma generate && tsc",
+    "start": "node dist/src/index.js",
+    "typecheck": "tsc --noEmit",
+    "probar": "tsx pruebas/humo.ts",
+    "bd:arriba": "docker compose up -d",
+    "bd:abajo": "docker compose down",
+    "bd:logs": "docker compose logs -f postgres",
+    "docker:completo": "docker compose --profile completo up -d --build",
+    "db:generar": "prisma generate",
+    "db:migrar": "prisma migrate dev",
+    "db:sembrar": "tsx prisma/seed.ts",
+    "db:limpiar": "tsx prisma/limpiar.ts",
+    "db:reiniciar": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "db:desplegar": "prisma migrate deploy",
+    "start:prod": "prisma migrate deploy && node dist/src/index.js"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.0",
+    "pg": "^8.23.0",
+    "prisma": "^7.10.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^26.4.0",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
+  }
+}

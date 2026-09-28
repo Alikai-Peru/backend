@@ -1,0 +1,16 @@
+# dependencias y compilaciones
+node_modules/
+dist/
+
+# cliente de Prisma generado a partir del esquema
+generated/
+
+# base de datos local de SQLite
+*.db
+*.db-journal
+*.sqlite
+
+# variables de entorno (el ejemplo sí se versiona)
+.env
+.env.*
+!.env.example
