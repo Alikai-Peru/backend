@@ -25,9 +25,7 @@ const crearMensajeSchema = z.object({
   telefono: z
     .string()
     .trim()
-    .regex(/^[\d\s+()-]{6,20}$/, "Ingresa un teléfono válido.")
-    .optional()
-    .or(z.literal("")),
+    .regex(/^[\d\s+()-]{6,20}$/, "Ingresa un teléfono válido."),
   motivo: motivoContactoSchema,
   mensaje: z
     .string()
@@ -47,7 +45,7 @@ rutasContacto.post("/", validarCuerpo(crearMensajeSchema), async (req, res) => {
     data: {
       nombre: datos.nombre,
       email: datos.email.toLowerCase(),
-      telefono: datos.telefono || null,
+      telefono: datos.telefono,
       motivo: datos.motivo,
       mensaje: datos.mensaje,
       aceptaPrivacidad: true,
@@ -127,13 +125,24 @@ rutasContacto.get(
 );
 
 rutasContacto.get("/:id", requiereSesion, async (req, res) => {
-  const mensaje = await prisma.mensajeContacto.findUnique({
-    where: { id: parametro(req, "id") },
+  const id = parametro(req, "id");
+  const encontrado = await prisma.mensajeContacto.findUnique({
+    where: { id },
     omit: { ipOrigen: true },
     include: { atendidoPor: { select: { id: true, nombre: true } } },
   });
 
-  if (!mensaje) throw ErrorHttp.noEncontrado("El mensaje");
+  if (!encontrado) throw ErrorHttp.noEncontrado("El mensaje");
+
+  const mensaje =
+    encontrado.estado === "NUEVO"
+      ? await prisma.mensajeContacto.update({
+          where: { id },
+          data: { estado: "LEIDO" },
+          omit: { ipOrigen: true },
+          include: { atendidoPor: { select: { id: true, nombre: true } } },
+        })
+      : encontrado;
 
   res.json({ ok: true, datos: mensaje });
 });
