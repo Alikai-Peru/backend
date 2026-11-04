@@ -17,10 +17,14 @@ const global_ = globalThis as unknown as { prisma?: PrismaClient };
 function urlConSsl(url: string) {
   const esSupabase =
     url.includes("supabase.co") || url.includes("pooler.supabase.com");
-  if (!esSupabase || url.includes("sslmode=")) return url;
-  const separador = url.includes("?") ? "&" : "?";
-  // pg 8 lee sslmode de la URL y, si no está, vuelve a exigir el certificado.
-  return `${url}${separador}sslmode=no-verify`;
+  if (!esSupabase) return url;
+  // pg 8 pisa la opción ssl con lo que diga la URL. sslmode=require
+  // vuelve a exigir el certificado, así que siempre se reemplaza.
+  const sinModo = url
+    .replace(/([?&])sslmode=[^&]*&?/g, "$1")
+    .replace(/[?&]$/, "");
+  const separador = sinModo.includes("?") ? "&" : "?";
+  return `${sinModo}${separador}sslmode=no-verify`;
 }
 
 function opcionesDeConexion() {
