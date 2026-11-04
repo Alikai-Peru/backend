@@ -117,7 +117,28 @@ rutasAreas.post(
   },
 );
 
-const actualizarAreaSchema = areaSchema.partial();
+const actualizarAreaSchema = z.object({
+  nombre: z.string().trim().min(2).max(120).optional(),
+  nombreCorto: z.string().trim().min(2).max(60).optional(),
+  lema: z.string().trim().max(160).optional(),
+  resumen: z.string().trim().max(500).optional(),
+  descripcion: z.string().trim().max(8000).optional(),
+  icono: z.string().trim().min(2).max(60).optional(),
+  tema: temaAreaSchema.optional(),
+  indicadorValor: z.string().trim().max(20).optional(),
+  indicadorEtiqueta: z.string().trim().max(80).optional(),
+  orden: z.number().int().min(0).optional(),
+  activa: z.boolean().optional(),
+  objetivos: z.array(z.string().trim().min(1).max(400)).optional(),
+  programas: z
+    .array(
+      z.object({
+        titulo: z.string().trim().min(1).max(120),
+        descripcion: z.string().trim().min(1).max(1000),
+      }),
+    )
+    .optional(),
+});
 
 rutasAreas.patch(
   "/:slug",

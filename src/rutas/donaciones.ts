@@ -47,23 +47,24 @@ const registrarSchema = z.object({
   anonima: z.boolean().default(false),
   mensaje: z.string().trim().max(1000).optional(),
   referencia: z.string().trim().max(120).optional(),
+  recibidoEn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Usa una fecha válida.")
+    .optional(),
   areaSlug: z.string().trim().max(80).optional(),
   proyectoSlug: z.string().trim().max(120).optional(),
 });
 
 /**
- * Registra la intención de donar. Queda en estado PENDIENTE hasta que el equipo
- * confirma el abono, o hasta que lo confirme la pasarela de pago cuando se
- * integre.
+ * Alta manual de un ingreso. El sitio público no crea aportes: el equipo anota
+ * aquí el abono cuando ya llegó, porque todavía no hay pasarela ni conciliación.
  */
-rutasDonaciones.post("/", validarCuerpo(registrarSchema), async (req, res) => {
+rutasDonaciones.post(
+  "/",
+  requiereSesion,
+  validarCuerpo(registrarSchema),
+  async (req, res) => {
   const datos = req.body as z.infer<typeof registrarSchema>;
-
-  if (!datos.anonima && !datos.email) {
-    throw ErrorHttp.datosInvalidos({
-      email: "Indica un correo para enviarte el comprobante, o marca la donación como anónima.",
-    });
-  }
 
   let areaId: string | null = null;
   if (datos.areaSlug) {
@@ -91,6 +92,10 @@ rutasDonaciones.post("/", validarCuerpo(registrarSchema), async (req, res) => {
     proyectoId = proyecto.id;
   }
 
+  const fecha = datos.recibidoEn
+    ? new Date(`${datos.recibidoEn}T12:00:00`)
+    : new Date();
+
   const donacion = await prisma.donacion.create({
     data: {
       montoCentimos: Math.round(datos.monto * 100),
@@ -104,24 +109,18 @@ rutasDonaciones.post("/", validarCuerpo(registrarSchema), async (req, res) => {
       referencia: datos.referencia ?? null,
       areaId,
       proyectoId,
+      estado: "CONFIRMADA",
+      creadoEn: fecha,
+      confirmadaEn: fecha,
     },
   });
-
-  /**
-   * TODO (Alikai): al integrar la pasarela de pago (Culqi, Izipay o Mercado
-   * Pago), crear aquí la orden y devolver la URL de pago. El webhook de la
-   * pasarela debe actualizar el estado a CONFIRMADA.
-   */
 
   res.status(201).json({
     ok: true,
-    datos: {
-      ...conMontoEnSoles(donacion),
-      instrucciones:
-        "Registramos tu donación. Te contactaremos para coordinar el pago y enviarte el comprobante.",
-    },
+    datos: conMontoEnSoles(donacion),
   });
-});
+  },
+);
 
 const listarSchema = consultaPaginadaSchema.extend({
   estado: estadoDonacionSchema.optional(),

@@ -8,6 +8,7 @@ import { rutasCifras } from "./cifras";
 import { rutasContacto } from "./contacto";
 import { rutasDonaciones } from "./donaciones";
 import { rutasProyectos } from "./proyectos";
+import { rutasSitio } from "./sitio";
 import { rutasVoluntarios } from "./voluntarios";
 
 export const rutas = Router();
@@ -38,6 +39,7 @@ rutas.get("/", (_req, res) => {
       endpoints: {
         publicos: [
           "GET  /api/salud",
+          "GET  /api/sitio",
           "GET  /api/areas",
           "GET  /api/areas/:slug",
           "GET  /api/proyectos",
@@ -61,6 +63,9 @@ rutas.get("/", (_req, res) => {
           "GET    /api/proyectos/gestion",
           "POST   /api/proyectos",
           "PATCH  /api/proyectos/:slug",
+          "PUT    /api/sitio",
+          "POST   /api/cifras",
+          "DELETE /api/cifras/:clave",
           "PATCH  /api/cifras/:clave",
         ],
       },
@@ -80,6 +85,7 @@ rutas.use("/auth", rutasAuth);
 rutas.use("/areas", rutasAreas);
 rutas.use("/proyectos", rutasProyectos);
 rutas.use("/cifras", rutasCifras);
+rutas.use("/sitio", rutasSitio);
 rutas.use("/contacto", rutasContacto);
 rutas.use("/voluntarios", rutasVoluntarios);
 rutas.use("/donaciones", rutasDonaciones);

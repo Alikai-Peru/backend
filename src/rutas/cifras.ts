@@ -36,6 +36,45 @@ const cifraSchema = z.object({
   activa: z.boolean().optional(),
 });
 
+const crearCifraSchema = z.object({
+  clave: z
+    .string()
+    .trim()
+    .min(2)
+    .max(60)
+    .regex(/^[a-z0-9-]+$/, "La clave solo admite minúsculas, números y guiones."),
+  valor: z.number().int().min(0),
+  sufijo: z.string().trim().max(5).nullable().optional(),
+  etiqueta: z.string().trim().min(3).max(80),
+  detalle: z.string().trim().min(5).max(300),
+  orden: z.number().int().min(0).optional(),
+});
+
+rutasCifras.post(
+  "/",
+  requiereSesion,
+  requiereRol("ADMIN", "EDITOR"),
+  validarCuerpo(crearCifraSchema),
+  async (req, res) => {
+    const datos = req.body as z.infer<typeof crearCifraSchema>;
+    const cifra = await prisma.cifraImpacto.create({ data: datos });
+    res.status(201).json({ ok: true, datos: cifra });
+  },
+);
+
+rutasCifras.delete(
+  "/:clave",
+  requiereSesion,
+  requiereRol("ADMIN"),
+  async (req, res) => {
+    const clave = parametro(req, "clave");
+    const existente = await prisma.cifraImpacto.findUnique({ where: { clave } });
+    if (!existente) throw ErrorHttp.noEncontrado("La cifra");
+    await prisma.cifraImpacto.delete({ where: { clave } });
+    res.json({ ok: true, datos: { eliminado: true } });
+  },
+);
+
 rutasCifras.patch(
   "/:clave",
   requiereSesion,

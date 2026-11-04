@@ -82,6 +82,28 @@ enum EstadoDonacion {
 
 // --------------------------------------------------------------------- modelos
 
+/// Datos institucionales que el panel puede editar: contacto, redes y pagos.
+model ConfiguracionSitio {
+  id            Int      @id @default(1)
+  email         String   @default("")
+  telefono      String   @default("")
+  whatsapp      String   @default("")
+  direccion     String   @default("")
+  horario       String   @default("")
+  facebook      String   @default("")
+  instagram     String   @default("")
+  linkedin      String   @default("")
+  youtube       String   @default("")
+  yapeNumero    String   @default("")
+  yapeTitular   String   @default("")
+  plinNumero    String   @default("")
+  plinTitular   String   @default("")
+  bancos        Json     @default("[]")
+  equipo        Json     @default("[]")
+  hitos         Json     @default("[]")
+  actualizadoEn DateTime @updatedAt
+}
+
 /// Personas con acceso al panel de administración.
 model Usuario {
   id            String    @id @default(cuid())

@@ -3,11 +3,11 @@ import bcrypt from "bcryptjs";
 
 import { PrismaClient } from "../generated/prisma/client";
 import { entorno } from "../src/config/entorno";
+import { areasIniciales } from "./datos/areas-iniciales";
 
 /**
- * Crea solo el usuario administrador.
- * No inserta áreas, proyectos, cifras ni ningún texto de ejemplo.
- * El contenido público se carga después, desde el panel, con datos reales.
+ * Crea el administrador y el texto de partida de las seis áreas.
+ * Si un área ya tiene lema, no se reemplaza: el panel es la fuente.
  */
 
 const prisma = new PrismaClient({
@@ -31,37 +31,61 @@ async function principal() {
 
   console.log(`\nUsuario administrador listo: ${email}`);
 
-  const areas = [
-    { slug: "tecnologia", nombre: "Tecnología", nombreCorto: "Tecnología", icono: "Wifi", tema: "marino" as const, orden: 0 },
-    { slug: "salud", nombre: "Salud", nombreCorto: "Salud", icono: "HeartPulse", tema: "selva" as const, orden: 1 },
-    { slug: "educacion", nombre: "Educación", nombreCorto: "Educación", icono: "BookOpen", tema: "marino" as const, orden: 2 },
-    { slug: "agricultura-sostenible", nombre: "Agricultura Sostenible", nombreCorto: "Agricultura", icono: "Sprout", tema: "selva" as const, orden: 3 },
-    { slug: "ayuda-social", nombre: "Ayuda Social", nombreCorto: "Ayuda Social", icono: "HandHeart", tema: "marino" as const, orden: 4 },
-    { slug: "cultura", nombre: "Cultura", nombreCorto: "Cultura", icono: "Theater", tema: "dorado" as const, orden: 5 },
-  ];
-
-  for (const area of areas) {
-    await prisma.area.upsert({
+  for (const area of areasIniciales) {
+    const existente = await prisma.area.findUnique({
       where: { slug: area.slug },
-      update: {
-        nombre: area.nombre,
-        nombreCorto: area.nombreCorto,
-        icono: area.icono,
-        tema: area.tema,
-        orden: area.orden,
-      },
-      create: {
-        ...area,
-        lema: "",
-        resumen: "",
-        descripcion: "",
-        indicadorValor: "",
-        indicadorEtiqueta: "",
-      },
+      select: { id: true, lema: true },
     });
+    const rellenar = !existente || existente.lema.trim() === "";
+    const { objetivos, programas, ...campos } = area;
+
+    const guardada = await prisma.area.upsert({
+      where: { slug: area.slug },
+      update: rellenar
+        ? campos
+        : {
+            nombre: campos.nombre,
+            nombreCorto: campos.nombreCorto,
+            icono: campos.icono,
+            tema: campos.tema,
+            orden: campos.orden,
+          },
+      create: campos,
+    });
+
+    if (rellenar) {
+      await prisma.objetivoArea.deleteMany({ where: { areaId: guardada.id } });
+      await prisma.programaArea.deleteMany({ where: { areaId: guardada.id } });
+      await prisma.objetivoArea.createMany({
+        data: objetivos.map((texto, orden) => ({ texto, orden, areaId: guardada.id })),
+      });
+      await prisma.programaArea.createMany({
+        data: programas.map((programa, orden) => ({ ...programa, orden, areaId: guardada.id })),
+      });
+    }
   }
 
-  console.log("Áreas vacías listas. No se cargaron proyectos, cifras ni textos de ejemplo.\n");
+  console.log("Áreas listas. Si ya tenían texto, el panel lo conserva.");
+
+  await prisma.configuracionSitio.upsert({
+    where: { id: 1 },
+    update: {
+      email: "alikaiperu@gmail.com",
+      telefono: "+51 992 575 510",
+      whatsapp: "https://wa.link/ms4ybq",
+      horario: "Atención 24/7",
+    },
+    create: {
+      id: 1,
+      email: "alikaiperu@gmail.com",
+      telefono: "+51 992 575 510",
+      whatsapp: "https://wa.link/ms4ybq",
+      direccion: "",
+      horario: "Atención 24/7",
+    },
+  });
+
+  console.log("Contacto institucional listo. Redes, pagos, equipo e historia se editan en el panel.\n");
 }
 
 principal()
