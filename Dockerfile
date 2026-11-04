@@ -44,5 +44,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||4000)+'/api/salud').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Railway inyecta PORT. migrate deploy usa DIRECT_URL (Supabase) o DATABASE_URL.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/index.js"]
+# Railway inyecta PORT y las URLs. migrate deploy usa DIRECT_URL o DATABASE_URL.
+CMD ["sh", "-c", "if [ -n \"$DIRECT_URL\" ]; then echo 'DIRECT_URL presente'; else echo 'DIRECT_URL ausente'; fi; if [ -n \"$DATABASE_URL\" ]; then echo 'DATABASE_URL presente'; else echo 'DATABASE_URL ausente'; fi; if [ -z \"$DIRECT_URL\" ] && [ -z \"$DATABASE_URL\" ]; then echo 'Falta la cadena de Supabase en Variables'; exit 1; fi; npx prisma migrate deploy && node dist/src/index.js"]
