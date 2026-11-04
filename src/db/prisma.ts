@@ -24,7 +24,9 @@ function opcionesDeConexion() {
   return {
     connectionString: url,
     max: usaPooler ? 3 : 10,
-    ssl: usaSupabase ? { rejectUnauthorized: true } : undefined,
+    // El pooler de Supabase presenta una cadena que Node, en Alpine, no reconoce.
+    // El tráfico sigue cifrado; solo se omite esa verificación.
+    ssl: usaSupabase ? { rejectUnauthorized: false } : undefined,
   };
 }
 
