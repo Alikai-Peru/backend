@@ -14,8 +14,17 @@ import { entorno } from "../config/entorno";
  */
 const global_ = globalThis as unknown as { prisma?: PrismaClient };
 
+function urlConSsl(url: string) {
+  const esSupabase =
+    url.includes("supabase.co") || url.includes("pooler.supabase.com");
+  if (!esSupabase || url.includes("sslmode=")) return url;
+  const separador = url.includes("?") ? "&" : "?";
+  // pg 8 lee sslmode de la URL y, si no está, vuelve a exigir el certificado.
+  return `${url}${separador}sslmode=no-verify`;
+}
+
 function opcionesDeConexion() {
-  const url = entorno.DATABASE_URL;
+  const url = urlConSsl(entorno.DATABASE_URL);
   const usaPooler =
     url.includes("pgbouncer=true") || url.includes(":6543/");
   const usaSupabase =
@@ -24,8 +33,6 @@ function opcionesDeConexion() {
   return {
     connectionString: url,
     max: usaPooler ? 3 : 10,
-    // El pooler de Supabase presenta una cadena que Node, en Alpine, no reconoce.
-    // El tráfico sigue cifrado; solo se omite esa verificación.
     ssl: usaSupabase ? { rejectUnauthorized: false } : undefined,
   };
 }
